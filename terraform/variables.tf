@@ -59,3 +59,19 @@ variable "github_repo_id" {
   type        = number
   default     = 1375188840
 }
+
+variable "human_admin_object_id" {
+  description = <<-DESC
+    Entra object ID of the human who should hold data-plane access to the lake.
+
+    Explicitly pinned rather than read from data.azurerm_client_config.current,
+    because that resolves to WHOEVER RUNS TERRAFORM. With CI in the picture that
+    makes the role assignment flip-flop: CI applies and replaces my grant with
+    its own, my next local apply replaces it back. principal_id forces
+    replacement, so each flip briefly revokes access entirely.
+
+    Identity in config must be declared, not inferred from the caller.
+  DESC
+  type        = string
+  default     = "47bc99b4-c89b-407a-97c7-5d6588abf332"
+}

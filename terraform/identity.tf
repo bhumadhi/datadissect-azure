@@ -52,11 +52,12 @@ resource "azurerm_role_assignment" "connector_on_lake" {
   principal_id         = azurerm_databricks_access_connector.uc.identity[0].principal_id
 }
 
-# The human — me, so I can upload claims files from the CLI using my Entra
-# identity rather than an account key. Same role, same mechanism: RBAC does not
+# The human — pinned by object ID, NOT data.azurerm_client_config.current.
+# See variable human_admin_object_id for why that distinction matters once CI
+# runs the same config. Same role, same mechanism: RBAC does not
 # care whether a principal is a person or a workload.
 resource "azurerm_role_assignment" "me_on_lake" {
   scope                = azurerm_storage_account.lake.id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.human_admin_object_id
 }
