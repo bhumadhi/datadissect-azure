@@ -24,8 +24,9 @@ resource "azurerm_resource_group" "rg" {
   location = var.location
 
   tags = {
-    project = "datadissect-azure"
-    purpose = "learning"
+    project    = "datadissect-azure"
+    purpose    = "learning"
+    managed_by = "terraform"
   }
 }
 
