@@ -57,7 +57,12 @@ jobs:
 
       - name: Plan
         id: plan
+        # pipefail is NOT optional here. Without it the exit code comes from
+        # `tee`, so a failed plan — lock contention, auth, a syntax error —
+        # exits 0 and the check goes green on a plan that never ran. A CI
+        # pipeline that lies is worse than no pipeline.
         run: |
+          set -euo pipefail
           terraform plan -input=false -no-color -out=tf.plan \
             -var="subscription_id=${{ vars.AZURE_SUBSCRIPTION_ID }}" \
             -var="alert_email=${{ vars.ALERT_EMAIL }}" \
