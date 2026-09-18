@@ -47,3 +47,15 @@ variable "state_storage_account" {
   description = "Storage account holding Terraform state. CI needs data-plane access to it."
   type        = string
 }
+
+variable "github_owner_id" {
+  description = "GitHub numeric owner ID. Part of the immutable subject claim."
+  type        = number
+  default     = 19201510
+}
+
+variable "github_repo_id" {
+  description = "GitHub numeric repository ID. Part of the immutable subject claim."
+  type        = number
+  default     = 1375188840
+}

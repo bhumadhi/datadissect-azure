@@ -16,6 +16,21 @@
 #   OIDC federation   → CI has no key
 # ─────────────────────────────────────────────────────────────────────────────
 
+# GitHub presents an IMMUTABLE subject claim containing numeric owner and repo
+# IDs, not names:
+#
+#   repo:bhumadhi@19201510/datadissect-azure@1375188840:pull_request
+#
+# The name-based form (repo:owner/name:ref) is the legacy format and silently
+# fails against a repo issuing immutable claims — AADSTS700213, "no matching
+# federated identity record". Numeric IDs cannot be re-registered, so deleting a
+# repo and reclaiming the name cannot be used to assume this identity.
+locals {
+  gh_owner = split("/", var.github_repo)[0]
+  gh_name  = split("/", var.github_repo)[1]
+  gh_sub   = "repo:${local.gh_owner}@${var.github_owner_id}/${local.gh_name}@${var.github_repo_id}"
+}
+
 # A user-assigned managed identity rather than an app registration: creating one
 # is an ARM operation, so it needs no Entra directory privileges. That matters
 # here because my account is a guest (#EXT#) in this tenant.
@@ -33,7 +48,7 @@ resource "azurerm_federated_identity_credential" "main" {
   user_assigned_identity_id = azurerm_user_assigned_identity.ci.id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:${var.github_repo}:ref:refs/heads/main"
+  subject                   = "${local.gh_sub}:ref:refs/heads/main"
 }
 
 resource "azurerm_federated_identity_credential" "pull_request" {
@@ -41,7 +56,7 @@ resource "azurerm_federated_identity_credential" "pull_request" {
   user_assigned_identity_id = azurerm_user_assigned_identity.ci.id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:${var.github_repo}:pull_request"
+  subject                   = "${local.gh_sub}:pull_request"
 }
 
 # What CI may do. Contributor at subscription scope is broad — appropriate for a
