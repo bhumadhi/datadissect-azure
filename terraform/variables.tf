@@ -75,3 +75,14 @@ variable "human_admin_object_id" {
   type        = string
   default     = "47bc99b4-c89b-407a-97c7-5d6588abf332"
 }
+
+variable "ci_client_id_for_grants" {
+  description = <<-DESC
+    CI identity's client ID, used as a Unity Catalog principal. Declared as a
+    variable rather than referencing azurerm_user_assigned_identity.ci.client_id
+    to avoid a dependency cycle: the grants live in unity_catalog.tf, which the
+    CI identity in ci.tf must already be able to read.
+  DESC
+  type        = string
+  default     = "3c0c30a2-d648-42a1-8041-124c322622a6"
+}

@@ -80,6 +80,14 @@ resource "databricks_grants" "claims_catalog" {
     principal  = "account users"
     privileges = ["USE_CATALOG", "USE_SCHEMA", "SELECT"]
   }
+
+  # CI manages this catalog, so it needs full privileges on it. Being a
+  # workspace admin is not enough — that governs the workspace, not the
+  # metastore's securables.
+  grant {
+    principal  = var.ci_client_id_for_grants
+    privileges = ["ALL_PRIVILEGES"]
+  }
 }
 
 # Read-only on raw. Nobody gets to write into the landing zone by hand.
@@ -89,5 +97,32 @@ resource "databricks_grants" "raw_location" {
   grant {
     principal  = "account users"
     privileges = ["READ_FILES"]
+  }
+
+  grant {
+    principal  = var.ci_client_id_for_grants
+    privileges = ["ALL_PRIVILEGES"]
+  }
+}
+
+# The credential itself. This is the one that blocked CI: terraform plan reads
+# every managed resource, and reading a storage credential requires a privilege
+# on it. Subscription Contributor is not such a privilege.
+resource "databricks_grants" "lake_credential" {
+  storage_credential = databricks_storage_credential.lake.id
+
+  grant {
+    principal  = var.ci_client_id_for_grants
+    privileges = ["ALL_PRIVILEGES"]
+  }
+}
+
+resource "databricks_grants" "other_locations" {
+  for_each          = toset(["cleansed", "curated", "managed"])
+  external_location = databricks_external_location.zones[each.key].id
+
+  grant {
+    principal  = var.ci_client_id_for_grants
+    privileges = ["ALL_PRIVILEGES"]
   }
 }
