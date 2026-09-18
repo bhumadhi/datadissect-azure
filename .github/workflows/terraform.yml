@@ -51,6 +51,9 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.16.3"
+          # The wrapper intercepts stdout to populate step outputs, which
+          # swallows `| tee`. Without this the plan comment posts empty.
+          terraform_wrapper: false
 
       # fmt and validate run before init — they need no cloud access, so they
       # fail fast and cheap on the most common mistakes.
@@ -77,7 +80,8 @@ jobs:
             -var="state_storage_account=${{ vars.STATE_STORAGE_ACCOUNT }}" \
             -var="github_repo=${{ github.repository }}" \
             | tee plan.txt
-          echo "summary=$(grep -E '^Plan:|No changes' plan.txt | tail -1)" >> "$GITHUB_OUTPUT"
+          SUMMARY=$(grep -E '^Plan:|^No changes' plan.txt | tail -1)
+          echo "summary=${SUMMARY:-see plan}" >> "$GITHUB_OUTPUT"
 
       # A plan nobody reads is theatre. Put it where the reviewer already is.
       - name: Comment plan on PR
