@@ -7,6 +7,17 @@ on:
     branches: [main]
     paths: ["terraform/**", ".github/workflows/terraform.yml"]
 
+# Terraform state is a single shared resource, so only one run may touch it at
+# a time. Without this, a merge to main and a PR update seconds apart both try
+# to take the blob lease and one fails on lock contention.
+#
+# cancel-in-progress is FALSE deliberately. For most CI you cancel superseded
+# runs to save minutes. Never for Terraform — killing a run mid-apply can leave
+# state locked or, worse, diverged from reality. Queue, never cancel.
+concurrency:
+  group: terraform-state
+  cancel-in-progress: false
+
 # These two permissions are what make OIDC work. Without id-token: write the
 # runner cannot request a token and azure/login fails with a confusing error.
 permissions:
