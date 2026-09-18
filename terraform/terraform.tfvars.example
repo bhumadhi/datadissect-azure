@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+alert_email     = "you@example.com"
+
+location      = "eastus2"
+prefix        = "ddaz"
+budget_amount = 50
+state_storage_account = "ddaztfstateXXXXXX"

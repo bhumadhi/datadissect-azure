@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Terraform — state contains resource IDs and can contain secrets. Never commit.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# NOTE: .terraform.lock.hcl is deliberately NOT ignored. It pins exact provider
+# versions and hashes so CI resolves the same code I ran locally. Commit it.
+
+# Your real variable values (subscription id, names). Commit the .example only.
+terraform.tfvars
+*.auto.tfvars
+
+# Local data
+data/*
+!data/.gitkeep
+
+# Azure / Databricks credentials
+.databrickscfg
+*.pem
+.env
+
+# Mac
+.DS_Store

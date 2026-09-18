@@ -1,0 +1,86 @@
+name: terraform
+
+on:
+  pull_request:
+    paths: ["terraform/**", ".github/workflows/terraform.yml"]
+  push:
+    branches: [main]
+    paths: ["terraform/**", ".github/workflows/terraform.yml"]
+
+# These two permissions are what make OIDC work. Without id-token: write the
+# runner cannot request a token and azure/login fails with a confusing error.
+permissions:
+  id-token: write      # request the OIDC token from GitHub
+  contents: read       # check out the repo
+  pull-requests: write # post the plan as a PR comment
+
+env:
+  ARM_USE_AZUREAD: "true"   # talk to the state backend with Entra, not a key
+  ARM_USE_OIDC: "true"
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No client secret. The runner presents its OIDC token; Entra checks the
+      # subject claim against the federated credential and exchanges it.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.3"
+
+      # fmt and validate run before init — they need no cloud access, so they
+      # fail fast and cheap on the most common mistakes.
+      - name: Format check
+        run: terraform fmt -check -recursive -diff
+
+      - name: Init
+        run: terraform init -input=false
+
+      - name: Validate
+        run: terraform validate -no-color
+
+      - name: Plan
+        id: plan
+        run: |
+          terraform plan -input=false -no-color -out=tf.plan \
+            -var="subscription_id=${{ vars.AZURE_SUBSCRIPTION_ID }}" \
+            -var="alert_email=${{ vars.ALERT_EMAIL }}" \
+            -var="state_storage_account=${{ vars.STATE_STORAGE_ACCOUNT }}" \
+            -var="github_repo=${{ github.repository }}" \
+            | tee plan.txt
+          echo "summary=$(grep -E '^Plan:|No changes' plan.txt | tail -1)" >> "$GITHUB_OUTPUT"
+
+      # A plan nobody reads is theatre. Put it where the reviewer already is.
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan.txt', 'utf8');
+            const body = `#### Terraform plan — \`${{ steps.plan.outputs.summary }}\`\n\n<details><summary>show plan</summary>\n\n\`\`\`terraform\n${plan.slice(-60000)}\n\`\`\`\n\n</details>`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      # Apply ONLY on main, and apply the plan file that was just reviewed —
+      # never a fresh plan generated at apply time.
+      - name: Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -input=false -auto-approve tf.plan

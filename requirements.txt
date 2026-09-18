@@ -1,0 +1,4 @@
+# Thin by design — the heavy lifting here is Terraform and the Azure/Databricks CLIs,
+# not Python. PySpark runs ON Databricks, so there is no local Spark install.
+faker==30.8.2          # synthetic claims data
+azure-storage-file-datalake==12.17.0   # upload to ADLS Gen2 from Python
