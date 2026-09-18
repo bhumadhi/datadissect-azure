@@ -74,3 +74,38 @@ resource "azurerm_role_assignment" "ci_state" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.ci.principal_id
 }
+
+# ── Unity Catalog access for CI ──────────────────────────────────────────────
+# Azure RBAC and Unity Catalog are SEPARATE governance planes.
+#
+#   Azure RBAC      governs resources — the workspace, the storage account.
+#   Unity Catalog   governs data objects — credentials, external locations,
+#                   catalogs, tables. Its own owners, its own grants.
+#
+# The CI identity is Contributor on the whole subscription and still cannot
+# read a storage credential, because Contributor is not a Unity Catalog
+# privilege. Terraform plan fails with "User does not have any privileges on
+# Credential". Azure Owner ≠ metastore admin.
+#
+# So the CI identity has to exist as a Databricks principal in its own right.
+
+# NOT a resource. Azure Databricks auto-provisions a service principal the
+# first time an Azure identity authenticates to the workspace — which the CI
+# identity already did during a failed run. Databricks owns that object's
+# lifecycle, so Terraform reads it rather than trying to create it.
+data "databricks_service_principal" "ci" {
+  application_id = azurerm_user_assigned_identity.ci.client_id
+}
+
+data "databricks_group" "admins" {
+  display_name = "admins"
+}
+
+# Workspace admin is broad — appropriate for an identity whose whole job is
+# managing this workspace's Unity Catalog objects, too broad for a pipeline
+# identity that only needs to read a table. Production would grant specific
+# privileges on specific securables instead.
+resource "databricks_group_member" "ci_admin" {
+  group_id  = data.databricks_group.admins.id
+  member_id = data.databricks_service_principal.ci.sp_id
+}
