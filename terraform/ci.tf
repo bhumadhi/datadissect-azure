@@ -97,15 +97,18 @@ data "databricks_service_principal" "ci" {
   application_id = azurerm_user_assigned_identity.ci.client_id
 }
 
-data "databricks_group" "admins" {
-  display_name = "admins"
-}
-
-# Workspace admin is broad — appropriate for an identity whose whole job is
-# managing this workspace's Unity Catalog objects, too broad for a pipeline
-# identity that only needs to read a table. Production would grant specific
-# privileges on specific securables instead.
-resource "databricks_group_member" "ci_admin" {
-  group_id  = data.databricks_group.admins.id
-  member_id = data.databricks_service_principal.ci.sp_id
-}
+# BOOTSTRAP, NOT CI-MANAGED.
+#
+# The CI identity's workspace-admin group membership was originally a resource
+# here. That is circular: CI would be managing the permissions CI runs with, and
+# Databricks refuses it —
+#
+#   cannot delete group member: PERMISSION_DENIED: requesting user is not an admin
+#
+# Modifying group membership needs ACCOUNT admin, which a workspace-admin
+# service principal does not have and should not have. Identity bootstrap
+# belongs outside the config CI applies, same as the state backend.
+#
+# The membership exists in Databricks, applied by a human. Terraform no longer
+# tracks it. The explicit Unity Catalog grants in unity_catalog.tf are what
+# actually let CI read the securables it manages.
