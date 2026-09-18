@@ -26,6 +26,18 @@ don't need to relearn.
 
 ---
 
+> **Status: built, verified, and torn down.**
+> Every phase below was applied against a real Azure subscription and the
+> pipeline ran successfully — 837P claims landed as Delta tables in Unity
+> Catalog on a job cluster with no credential anywhere in the code. The
+> infrastructure is then destroyed, because paying ~$1.50/day for something
+> that rebuilds from code in fifteen minutes is the waste IaC exists to remove.
+>
+> `terraform apply` brings the whole estate back. Only the synthetic claims
+> file needs regenerating (`scripts/generate_sample_claims.py`). Terraform
+> state lives in its own resource group, created outside this config, so it
+> survives teardown.
+
 ## Definition of done
 
 My resume currently carries this line:
