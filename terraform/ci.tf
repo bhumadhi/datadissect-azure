@@ -29,21 +29,19 @@ resource "azurerm_user_assigned_identity" "ci" {
 # The SUBJECT is the security boundary. Entra will only exchange a token whose
 # claims match exactly — a different repo, or a different branch, gets nothing.
 resource "azurerm_federated_identity_credential" "main" {
-  name                = "github-main"
-  resource_group_name = azurerm_resource_group.rg.name
-  parent_id           = azurerm_user_assigned_identity.ci.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:${var.github_repo}:ref:refs/heads/main"
+  name                      = "github-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:${var.github_repo}:ref:refs/heads/main"
 }
 
 resource "azurerm_federated_identity_credential" "pull_request" {
-  name                = "github-pr"
-  resource_group_name = azurerm_resource_group.rg.name
-  parent_id           = azurerm_user_assigned_identity.ci.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:${var.github_repo}:pull_request"
+  name                      = "github-pr"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:${var.github_repo}:pull_request"
 }
 
 # What CI may do. Contributor at subscription scope is broad — appropriate for a
