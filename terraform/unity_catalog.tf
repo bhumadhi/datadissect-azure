@@ -53,6 +53,8 @@ resource "databricks_catalog" "claims" {
     purpose = "datadissect-azure"
   }
 
+  force_destroy = true
+
   depends_on = [databricks_external_location.zones]
 }
 
@@ -68,6 +70,13 @@ resource "databricks_schema" "layers" {
   catalog_name = databricks_catalog.claims.name
   name         = each.key
   comment      = each.value
+
+  # Terraform created these schemas; the Spark job created the TABLES inside
+  # them. Those tables are not in state, so terraform destroy fails on
+  # "schema is not empty". force_destroy tells Terraform to drop the contents
+  # it did not create. Deliberate here because all data is synthetic — on
+  # anything real this flag is how you lose a warehouse.
+  force_destroy = true
 }
 
 # ── Governance ───────────────────────────────────────────────────────────────

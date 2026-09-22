@@ -51,3 +51,52 @@ az consumption usage list --top 10 \
 
 Usage data lags 8–24 hours, so this won't show a cluster you started an hour
 ago. The budget alert configured in `budget.tf` is the real safety net.
+
+## What actually blocks a destroy
+
+Teardown was not clean the first time, and the reasons generalise.
+
+**Terraform destroys what it built, not what ran on top of it.**
+
+Terraform created the Unity Catalog schemas. The *Spark job* created the tables
+inside them. Those tables were never in Terraform state, so destroy failed:
+
+```
+Error: cannot delete schema: Schema 'claims.silver' is not empty.
+       The schema has 1 tables(s), 0 functions(s), 0 volumes(s)
+```
+
+`force_destroy = true` on the schema and catalog resources is in the config now,
+but **it did not resolve this on its own** during destroy. What worked was
+dropping the tables directly first:
+
+```bash
+export DATABRICKS_HOST="https://<workspace>.azuredatabricks.net"
+for T in claims.bronze.claims_raw claims.silver.claims_cleansed \
+         claims.gold.member_summary claims.gold.payer_summary; do
+  databricks tables delete "$T"
+done
+```
+
+**Dropped tables still count as dependents.** Unity Catalog keeps deleted tables
+recoverable for a window, so the managed external location still reported four
+dependent tables after they were dropped:
+
+```
+Error: cannot delete external location ... because the location has
+       4 dependent managed tables ... You may use force option
+```
+
+That needed an explicit force:
+
+```bash
+databricks external-locations delete ddaz-managed --force
+```
+
+After both, `terraform destroy` completed: 20 resources destroyed.
+
+**The general point.** Any platform accumulates objects the application created
+rather than the IaC — tables, checkpoints, volumes, output files. A time-boxed
+engagement needs a teardown plan that accounts for them, because `terraform
+destroy` alone will stall partway and leave you with a half-removed estate and
+a state file that no longer matches reality.
